@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  external_labels:
+    monitor: 'my-monitor'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  - job_name: 'node_exporter'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['node_exporter:9100']
+
+  - job_name: 'react-service'
+    static_configs:
+      - targets: [ 'react_service:3001' ]
+
+  - job_name: 'thanos-sidecar'
+    static_configs:
+      - targets: ['sidecar:10902']

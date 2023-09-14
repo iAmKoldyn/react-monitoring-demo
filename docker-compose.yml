@@ -1,0 +1,78 @@
+version: '3'
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus # Shared Volume
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+      - "--storage.tsdb.min-block-duration=10m"
+      - "--storage.tsdb.max-block-duration=10m"
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+
+  react_service:
+    build:
+      context: ./react-monitoring-demo
+    ports:
+      - "3001:3001"
+
+  minio:
+    image: minio/minio:latest
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: minioaccesskey
+      MINIO_ROOT_PASSWORD: miniosecretkey
+    command: server /data
+    ports:
+      - "9000:9000"
+
+  sidecar:
+    image: thanosio/thanos:v0.25.0
+    command:
+      - "sidecar"
+      - "--prometheus.url=http://prometheus:9090"
+      - "--tsdb.path=/prometheus"
+      - "--objstore.config={\"type\":\"s3\",\"config\":{\"bucket\":\"thanos\",\"endpoint\":\"minio:9000\",\"access_key\":\"minioaccesskey\",\"secret_key\":\"miniosecretkey\",\"insecure\":true}}"
+    ports:
+      - "10902:10902"
+    volumes:
+      - prometheus-data:/prometheus # Shared Volume
+
+  store:
+    image: thanosio/thanos:v0.25.0
+    command:
+      - "store"
+      - "--data-dir=/var/thanos/store"
+      - "--objstore.config={\"type\":\"s3\",\"config\":{\"bucket\":\"thanos\",\"endpoint\":\"minio:9000\",\"access_key\":\"minioaccesskey\",\"secret_key\":\"miniosecretkey\",\"insecure\":true}}"
+
+  query:
+    image: thanosio/thanos:v0.25.0
+    command:
+      - "query"
+      - "--store=prometheus:9090"
+      - "--store=store:10901"
+    ports:
+      - "10901:10901"
+
+volumes:
+  minio-data:
+  prometheus-data: # Definition for the shared volume
+
