@@ -56,13 +56,6 @@ services:
     volumes:
       - prometheus-data:/prometheus # Shared Volume
 
-  store:
-    image: thanosio/thanos:v0.25.0
-    command:
-      - "store"
-      - "--data-dir=/var/thanos/store"
-      - "--objstore.config={\"type\":\"s3\",\"config\":{\"bucket\":\"thanos\",\"endpoint\":\"minio:9000\",\"access_key\":\"minioaccesskey\",\"secret_key\":\"miniosecretkey\",\"insecure\":true}}"
-
   query:
     image: thanosio/thanos:v0.25.0
     command:
@@ -72,7 +65,17 @@ services:
     ports:
       - "10901:10901"
 
+  store:
+    image: thanosio/thanos:v0.25.0
+    depends_on:
+      - minio
+    command:
+      - "store"
+      - "--data-dir=/var/thanos/store"
+      - "--objstore.config={\"type\":\"s3\",\"config\":{\"bucket\":\"thanos\",\"endpoint\":\"minio:9000\",\"access_key\":\"minioaccesskey\",\"secret_key\":\"miniosecretkey\",\"insecure\":true}}"
+
 volumes:
   minio-data:
   prometheus-data: # Definition for the shared volume
+
 
