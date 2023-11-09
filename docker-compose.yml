@@ -78,4 +78,3 @@ volumes:
   minio-data:
   prometheus-data: # Definition for the shared volume
 
-
