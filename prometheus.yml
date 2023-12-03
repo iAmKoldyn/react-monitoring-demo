@@ -16,7 +16,15 @@ scrape_configs:
 
   - job_name: 'react-service'
     static_configs:
-      - targets: [ 'react_service:3001' ]
+      - targets: ['react_service:3001']
+  
+  - job_name: 'system_load'
+    static_configs:
+      - targets: ['system_load:8080']
+
+  - job_name: 'network_load'
+    static_configs:
+      - targets: ['network_load:8081']
 
   - job_name: 'thanos-sidecar'
     static_configs:

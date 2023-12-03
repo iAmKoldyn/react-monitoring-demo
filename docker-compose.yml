@@ -13,11 +13,15 @@ services:
       - "--web.enable-lifecycle"
       - "--storage.tsdb.min-block-duration=10m"
       - "--storage.tsdb.max-block-duration=10m"
+    networks:
+      - shared_network
 
   node_exporter:
     image: prom/node-exporter:latest
     ports:
       - "9100:9100"
+    networks:
+      - shared_network
 
   grafana:
     image: grafana/grafana:latest
@@ -26,12 +30,16 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
-
+    networks:
+      - shared_network
+      
   react_service:
     build:
       context: ./react-monitoring-demo
     ports:
       - "3001:3001"
+    networks:
+      - shared_network
 
   minio:
     image: minio/minio:latest
@@ -43,6 +51,8 @@ services:
     command: server /data
     ports:
       - "9000:9000"
+    networks:
+      - shared_network
 
   sidecar:
     image: thanosio/thanos:v0.25.0
@@ -55,6 +65,8 @@ services:
       - "10902:10902"
     volumes:
       - prometheus-data:/prometheus # Shared Volume
+    networks:
+      - shared_network
 
   query:
     image: thanosio/thanos:v0.25.0
@@ -64,6 +76,8 @@ services:
       - "--store=store:10901"
     ports:
       - "10901:10901"
+    networks:
+      - shared_network
 
   store:
     image: thanosio/thanos:v0.25.0
@@ -73,8 +87,13 @@ services:
       - "store"
       - "--data-dir=/var/thanos/store"
       - "--objstore.config={\"type\":\"s3\",\"config\":{\"bucket\":\"thanos\",\"endpoint\":\"minio:9000\",\"access_key\":\"minioaccesskey\",\"secret_key\":\"miniosecretkey\",\"insecure\":true}}"
+    networks:
+      - shared_network
 
 volumes:
   minio-data:
   prometheus-data: # Definition for the shared volume
 
+networks:
+  shared_network:
+    external: true
