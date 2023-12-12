@@ -1,0 +1,14 @@
+torch==1.12.0+cu121
+torchvision==0.13.0+cu121
+torchaudio==0.12.0+cu121
+albumentations==1.1.0
+# torchvision==0.11.1
+# torchaudio==0.10.0
+segmentation-models-pytorch==0.2.0
+opencv-python-headless==4.5.5.64  
+numpy==1.21.4 
+Pillow==8.4.0
+matplotlib==3.4.3
+prometheus_client==0.11.0
+psutil==5.9.6
+GPUtil==1.4.0

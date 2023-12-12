@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  system_cpu_load:
+    build: .
+    command: python ./cpu.py
+    ports:
+      - "8082:8082"
+    networks:
+      - shared_network
+
+  system_cuda_cpu_ram_disk_load:
+    build: .
+    command: python ./cuda.py
+    ports:
+      - "8083:8083"
+    networks:
+      - shared_network
+      
+networks:
+  shared_network:
+    external: true
