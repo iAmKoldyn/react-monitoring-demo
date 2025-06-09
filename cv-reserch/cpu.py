@@ -61,7 +61,6 @@ class FootballFieldDataset(Dataset):
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = F.to_pil_image(image)
-        mask = cv2.imread(mask_path, 0) 
         mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_NEAREST) 
 
         mask = np.where(mask == 113, 1, mask)
