@@ -1,0 +1,10 @@
+apiVersion: 1
+
+datasources:
+  - name: Thanos Query
+    uid: thanos_query
+    type: prometheus
+    access: proxy
+    url: http://query:10902
+    isDefault: true
+    editable: true

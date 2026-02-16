@@ -22,9 +22,9 @@ scrape_configs:
     static_configs:
       - targets: ['system_load:8080']
     
-  - job_name: 'system_cpu_disk_ram_load'
+  - job_name: 'system_cpu_load'
     static_configs:
-      - targets: ['system_cpu_disk_ram_load:8082']
+      - targets: ['system_cpu_load:8082']
 
   - job_name: 'system_cuda_cpu_ram_disk_load'
     static_configs:

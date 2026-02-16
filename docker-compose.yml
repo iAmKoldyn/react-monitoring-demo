@@ -1,4 +1,3 @@
-version: '3'
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -15,6 +14,7 @@ services:
       - "--storage.tsdb.max-block-duration=10m"
     networks:
       - shared_network
+    restart: unless-stopped
 
   node_exporter:
     image: prom/node-exporter:latest
@@ -22,6 +22,7 @@ services:
       - "9100:9100"
     networks:
       - shared_network
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:latest
@@ -30,8 +31,14 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      query:
+        condition: service_started
     networks:
       - shared_network
+    restart: unless-stopped
       
   react_service:
     build:
@@ -40,6 +47,7 @@ services:
       - "3001:3001"
     networks:
       - shared_network
+    restart: unless-stopped
 
   minio:
     image: minio/minio:latest
@@ -53,9 +61,32 @@ services:
       - "9000:9000"
     networks:
       - shared_network
+    restart: unless-stopped
+
+  minio_init:
+    image: minio/mc:latest
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 minioaccesskey miniosecretkey; do
+          echo "Waiting for MinIO..."
+          sleep 2
+        done
+        mc mb --ignore-existing local/thanos
+    depends_on:
+      - minio
+    networks:
+      - shared_network
+    restart: "no"
 
   sidecar:
     image: thanosio/thanos:v0.25.0
+    depends_on:
+      minio_init:
+        condition: service_completed_successfully
+      prometheus:
+        condition: service_started
     command:
       - "sidecar"
       - "--prometheus.url=http://prometheus:9090"
@@ -67,31 +98,37 @@ services:
       - prometheus-data:/prometheus # Shared Volume
     networks:
       - shared_network
+    restart: unless-stopped
 
   query:
     image: thanosio/thanos:v0.25.0
     command:
       - "query"
-      - "--store=prometheus:9090"
+      - "--store=sidecar:10901"
       - "--store=store:10901"
     ports:
       - "10901:10901"
     networks:
       - shared_network
+    restart: unless-stopped
 
   store:
     image: thanosio/thanos:v0.25.0
     depends_on:
-      - minio
+      minio_init:
+        condition: service_completed_successfully
     command:
       - "store"
       - "--data-dir=/var/thanos/store"
       - "--objstore.config={\"type\":\"s3\",\"config\":{\"bucket\":\"thanos\",\"endpoint\":\"minio:9000\",\"access_key\":\"minioaccesskey\",\"secret_key\":\"miniosecretkey\",\"insecure\":true}}"
     networks:
       - shared_network
+    restart: unless-stopped
 
 volumes:
   minio-data:
+    external: true
+    name: minio-data
   prometheus-data: # Definition for the shared volume
 
 networks:
