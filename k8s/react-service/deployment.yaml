@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: react-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: react-service
+  template:
+    metadata:
+      labels:
+        app: react-service
+    spec:
+      containers:
+      - name: react-service
+        image: localhost:3001/react-service:latest # RP with your image path
+        ports:
+        - containerPort: 3001

@@ -1,105 +1,113 @@
-# Monitoring Stack (Prometheus + Grafana + Thanos + MinIO)
+# Стек мониторинга (Prometheus + Grafana + Thanos + MinIO)
 
-This project contains a local monitoring stack with long-term metrics storage:
+Описание единой платформы (Registry + Kubernetes + балансировка + персистентный мониторинг) см. в:
 
-- `prometheus` scrapes metrics
-- `react_service` exposes app metrics (for example `page_views`)
-- `node_exporter` exposes host metrics
-- `thanos sidecar` uploads Prometheus TSDB blocks to MinIO
-- `thanos store` reads blocks from MinIO
-- `thanos query` serves unified Prometheus-compatible query API
-- `grafana` visualizes metrics
+- `README.unified.md`
 
-Optional load generators are in:
+Статус/checkpoint по Kubernetes после апдейта `k8s/` описан в:
+
+- `README.unified.md` (раздел `4. Чекпойнт после восстановления k8s/`)
+
+Проект содержит локальный стек мониторинга с персистентным хранением метрик:
+
+- `prometheus` собирает метрики
+- `react_service` отдает метрики приложения (например `page_views`)
+- `node_exporter` отдает метрики хоста
+- `thanos sidecar` выгружает TSDB-блоки Prometheus в MinIO
+- `thanos store` читает блоки из MinIO
+- `thanos query` отдает единый Prometheus-совместимый API для запросов
+- `grafana` визуализирует метрики
+
+Опциональные генераторы нагрузки находятся в:
 
 - `str_test_C++`
 - `cv-reserch`
 
-## Ports
+## Порты
 
 - Grafana: `http://localhost:3000` (`admin` / `admin`)
 - Prometheus: `http://localhost:9090`
-- React metrics endpoint: `http://localhost:3001/metrics`
+- Endpoint метрик React: `http://localhost:3001/metrics`
 - MinIO API: `http://localhost:9000`
 
-## One-time prerequisites
+## Одноразовые предварительные шаги
 
-Because compose uses external resources, create them once before first start:
+Так как compose использует внешние ресурсы, они создаются один раз перед первым запуском:
 
 ```bash
 docker network create shared_network
 docker volume create minio-data
 ```
 
-Do you need to create them manually?
+Нужно создавать их вручную
 
-- `shared_network`: yes, required (`external: true`)
-- `minio-data`: yes, required (`external: true`)
+- `shared_network`:  (`external: true`)
+- `minio-data`: (`external: true`)
 
-## Start the main stack
+## Запуск основного стека
 
-From `react-monitoring-demo` directory:
+Из директории `react-monitoring-demo`:
 
 ```bash
 docker compose up -d --force-recreate
 ```
 
-Notes:
+Примечания:
 
-- `minio_init` is a one-shot container. `Exited (0)` is expected.
-- `minio_init` creates MinIO bucket `thanos` automatically.
+- `minio_init` одноразовый контейнер для баскета. Статус `Exited (0)`.
+- `minio_init` автоматически создает бакет `thanos` в MinIO.
 
-## Start optional load generators
+## Запуск опциональных генераторов нагрузки
 
-From `react-monitoring-demo` directory:
+Из директории `react-monitoring-demo`:
 
 ```bash
 docker compose -f str_test_C++/docker-compose.yml up -d --build
 docker compose -f cv-reserch/docker-compose.yml up -d --build
 ```
 
-If they are not running, some Prometheus targets will stay `down` (expected).
+Если они не запущены, часть таргетов в Prometheus будет в статусе `down`.
 
-## Grafana datasource
+## Datasource в Grafana
 
-Use Thanos Query as datasource URL:
+Используется Thanos Query в качестве URL datasource:
 
 ```text
 http://query:10902
 ```
 
-Important:
+Важно:
 
-- Do not use `http://sidecar:10902/metrics` as Grafana datasource.
-- `sidecar:10902/metrics` is only sidecar self-metrics endpoint.
-- Querying through `query` gives access to current + historical data from MinIO.
+- Не использовать `http://sidecar:10902/metrics` как datasource Grafana.
+- `sidecar:10902/metrics` это self-metrics самого sidecar.
+- Запросы через `query` дают доступ к текущим и записанным данным из MinIO.
 
-Datasource provisioning file:
+Файл provisioning datasource:
 
 - `grafana/provisioning/datasources/datasource.yml`
 
-## Persistence behavior (important)
+## Поведение персистентности (важно)
 
-Long-term history is persisted in MinIO through Thanos.
+Долгосрочная история метрик сохраняется в MinIO через Thanos.
 
-But `/metrics` values from app process are still process-local.
+Но значения на `/metrics` у приложения остаются process-local.
 
-Example with `page_views`:
+Пример с `page_views`:
 
-- before restart: `page_views = 20`
-- after `react_service` restart: app counter resets, current value may show `0`
-- new requests increment from there again
+- до рестарта: `page_views = 20`
+- после рестарта `react_service`: счетчик в приложении сбрасывается, текущее значение может быть `0`
+- новые запросы снова увеличивают счетчик
 
-This is expected for Prometheus `Counter` exposed by a restarted app process.
+Так и должно быть с Prometheus `Counter`, который отдается перезапущенным процессом приложения.
 
-Your history is not lost if you query via Thanos Query/Grafana.
+История не теряется, если смотреть через Thanos Query/Grafana.
 
-Use these PromQL expressions for dashboards:
+PromQL-выражения для дашбордов:
 
-- views over selected range: `sum(increase(page_views[$__range]))`
-- per-second rate: `sum(rate(page_views[1m]))`
+- просмотры за выбранный период: `sum(increase(page_views[$__range]))`
+- скорость в секунду: `sum(rate(page_views[1m]))`
 
-## Quick checks
+## Быстрые проверки
 
 ```bash
 docker compose ps -a
@@ -108,16 +116,16 @@ docker compose logs sidecar --tail 100
 docker compose logs minio_init --tail 50
 ```
 
-Expected healthy signs:
+Ожидаемый healfcheck:
 
-- `store` is `Up` and no `The specified bucket does not exist`
-- `sidecar` logs `upload new block`
-- `query` sees stores (`sidecar:10901`, `store:10901`)
+- `store` в состоянии `Up` и нет ошибки `The specified bucket does not exist`
+- в логах `sidecar` есть `upload new block`
+- `query` видит store-источники (`sidecar:10901`, `store:10901`)
 
-## Stop
+## Остановка
 
 ```bash
 docker compose down
 ```
 
-This keeps volumes by default, including external `minio-data`.
+По умолчанию тома сохраняются, включая внешний `minio-data`.
